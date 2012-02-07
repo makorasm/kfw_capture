@@ -9,9 +9,6 @@
 
 typedef struct _common_res{
 
-	int       sfile;
-	void*     msfile_addr;
-	unsigned  sf_offs;
 	int       sync_fifo;
 	int       param_fifo;
 	int       shm_id;
@@ -22,7 +19,6 @@ typedef struct _common_res{
 	char      s_fifoname[256];	
 	char      p_fifoname[256];	
 	unsigned  bf_size;
-	unsigned  sf_size;
 } common_res, *pcommon_res;
 
 typedef enum _cmds{

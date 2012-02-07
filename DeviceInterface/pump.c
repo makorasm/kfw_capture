@@ -124,12 +124,13 @@ void* source_thread(void* prms){
 	
 	while(!prm->fpump.stop_cond && (prm->fpump.offset < prm->fpump.file_size)){
 		
-		if(prm->fpump.buf_size > (prm->fpump.file_size - prm->fpump.offset))
-			prm->fpump.buf_size=prm->fpump.file_size - prm->fpump.offset;
+	int currdataSize=prm->fpump.buf_size;
+	if(currdataSize > (prm->fpump.file_size - prm->fpump.offset))
+		currdataSize=prm->fpump.file_size - prm->fpump.offset;
 			
-	 prm->fpump.pump_read_callback(prm->fpump.map_addr + prm->fpump.offset, prm->fpump.buf_size, prm->fpump.pump_read_callback_data);
+	 prm->fpump.pump_read_callback(prm->fpump.map_addr + prm->fpump.offset, currdataSize, prm->fpump.pump_read_callback_data);
 
-	 prm->fpump.offset += prm->fpump.buf_size;
+	 prm->fpump.offset += currdataSize;
 	 if(prm->fpump.offset >= prm->fpump.file_size) prm->fpump.offset=0;
 		
 	
