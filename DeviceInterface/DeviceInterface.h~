@@ -174,7 +174,7 @@ struct s_VideoEncoderConfiguration
 //*********************************************************************
 typedef int (pump_callback)(void*, unsigned, void*);
 
-struct list_head list;
+struct ist_head list;
 typedef struct _fpump{
 
 	char 						sf_name[256];
