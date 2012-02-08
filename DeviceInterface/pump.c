@@ -107,7 +107,8 @@ int net_pump_init(){
 
 	return -1;
 }
-
+//**********************************************************************
+//**********************************************************************
 int omx_pump_init(){
 	char fifo_name[256];
 	prm.omxpump.shm_id=shmget(1408, 1024*1024, IPC_CREAT|00777);
@@ -157,6 +158,21 @@ int omx_pump_init(){
 	return -1;
 }
 
+
+void* omx_source_thread(void* prms){
+	
+	pinternal_params prm=(pinternal_params)prms;
+	pinternal_omxpump iomx_pump=&prm->omxpump;
+	pomxpump eomx_pump=&param.VideoParam.p_params.omx_pump_params;
+	
+	while(!iomx_pump->stop_cond){
+
+
+	}
+	return NULL;
+}
+//**********************************************************************
+//**********************************************************************
 int dev_pump_init(){
 
 	return -1;
