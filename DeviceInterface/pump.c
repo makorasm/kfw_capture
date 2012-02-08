@@ -32,7 +32,7 @@
 #include "string.h"
 #include "DeviceInterface.h"
 #include "internal.h"
-
+#include "list.h"
 
 internal_params prm;
 struct s_ProcessParam param;
@@ -104,10 +104,55 @@ int file_pump_init(){
 
 int net_pump_init(){
 	
+
 	return -1;
 }
 
 int omx_pump_init(){
+	char fifo_name[256];
+	prm.omxpump.shm_id=shmget(1408, 1024*1024, IPC_CREAT|00777);
+	if(prm.omxpump.shm_id==-1){
+		perror("shmget");
+		return -1;
+	}
+	prm.omxpump.shm_point=shmat(prm.omxpump.shm_id, NULL, 0);
+	if(prm.omxpump.shm_point==(void*)-1){
+		perror("shmat");
+		shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
+		return -1;
+	}
+	
+	getcwd(fifo_name, 256);
+	strcat(fifo_name, "/sync.fifo");
+	if(mkfifo(fifo_name, 00777)==-1){
+		if(errno!=EEXIST){
+			perror("mkfifo");
+			shmdt(prm.omxpump.shm_point);
+			shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
+			return -1;
+		}
+	}
+	getcwd(fifo_name, 256);
+	strcat(fifo_name, "/cmd.fifo");
+	if(mkfifo(fifo_name, 00777)==-1){
+		if(errno!=EEXIST){
+			perror("mkfifo");
+			shmdt(prm.omxpump.shm_point);
+			shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
+			return -1;
+		}
+	}
+//omxpump struct initialization
+	if(sem_init(&prm.omxpump.stop_sem, 0, 0)==-1){
+
+			perror("sem_init");
+			shmdt(prm.omxpump.shm_point);
+			shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
+			return -1;
+	}
+	param.VideoParam.p_params.omx_pump_params.stop_sem=&prm.omxpump.stop_sem;
+	INIT_LIST_HEAD(&param.VideoParam.p_params.omx_pump_params.callback_chain.entry);
+
 
 	return -1;
 }

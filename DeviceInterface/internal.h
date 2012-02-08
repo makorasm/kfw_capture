@@ -41,7 +41,8 @@ typedef struct _internal_netpump{
 typedef struct _internal_omxpump{
 	
 	int 			shm_id;
-	int 			msg_id;
+	char*			shm_point;
+	int 			pipe_id;
 	pthread_t thr_id;
 	sem_t			stop_sem;
 

@@ -174,7 +174,16 @@ struct s_VideoEncoderConfiguration
 //*********************************************************************
 typedef int (pump_callback)(void*, unsigned, void*);
 
-struct list_head list;
+
+typedef struct _call_chain{
+
+	struct list_head			entry;
+	pump_callback* read_callback;
+	void*					callback_data;
+
+}call_chain,*pcall_chain; 
+
+
 typedef struct _fpump{
 
 	char 						sf_name[256];
@@ -196,6 +205,10 @@ typedef struct _netpump{
 }netpump, *pnetpump;
 
 typedef struct _omxpump{
+
+	unsigned			buf_size;
+	call_chain		callback_chain;
+	sem_t*				stop_sem;
 
 }omxpump, *pomxpump;
 
