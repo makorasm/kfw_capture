@@ -42,8 +42,10 @@ typedef struct _internal_omxpump{
 	
 	int 			shm_id;
 	char*			shm_point;
-	int 			pipe_id;
+	int 			synk_pipe_id;
+	int				cmd_pipe_id;
 	pthread_t thr_id;
+	pid_t			proc_id;
 	sem_t			stop_sem;
 	int				stop_cond;
 

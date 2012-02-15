@@ -137,7 +137,7 @@ int omx_pump_init(){
 	strcat(fifo_name, "/cmd.fifo");
 	if(mkfifo(fifo_name, 00777)==-1){
 		if(errno!=EEXIST){
-			perror("mkfifo");
+			perror("mkfifo 1");
 			shmdt(prm.omxpump.shm_point);
 			shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
 			return -1;
@@ -158,6 +158,20 @@ int omx_pump_init(){
 	return -1;
 }
 
+void omx_pump_deinit(){
+	
+	char fifo_name[256];
+	shmdt(prm.omxpump.shm_point);
+	shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
+	sem_destroy(&prm.omxpump.stop_sem);
+	getcwd(fifo_name, 256);
+	strcat(fifo_name, "/sync.fifo");
+	unlink(fifo_name);
+	getcwd(fifo_name, 256);
+	strcat(fifo_name, "/cmd.fifo");
+	unlink(fifo_name);
+
+}
 
 void* omx_source_thread(void* prms){
 	
@@ -170,6 +184,43 @@ void* omx_source_thread(void* prms){
 
 	}
 	return NULL;
+}
+
+
+int omx_pump_start(){
+	char fifo_name[256];
+	pthread_attr_t attr;
+	if(list_empry(&param.VideoParam.p_params.omx_pump_params.callback_chain.entry)){
+		fprintf(stderr, "ERROR: Callback chain list is epty!");
+		return -1;
+  }
+ //Here will be fork() 
+ //
+ //
+	getcwd(fifo_name, 256);
+	strcat(fifo_name, "/sync.fifo");
+ 	prm.omxpump.synk_pipe_id=open(fifo_name, O_RDONLY);
+	if(prm.omxpump.synk_pipe_id==-1){
+		perror("open synk fifo");
+		return -1;
+	}
+ 
+	getcwd(fifo_name, 256);
+	strcat(fifo_name, "/cmd.fifo");
+ 	prm.omxpump.cmd_pipe_id=open(fifo_name, O_WRONLY);
+	if(prm.omxpump.synk_pipe_id==-1){
+		perror("open cmd fifo");
+		return -1;
+	}
+	pthread_attr_init(&attr);
+	if(pthread_create(&prm.omxpump.thr_id, &attr,omx_source_thread, &prm )==-1){
+
+		perror("thread ctreate");
+		close(prm.omxpump.cmd_pipe_id);
+		close(prm.omxpump.synk_pipe_id);
+		return -1;
+	}
+	return 0;
 }
 //**********************************************************************
 //**********************************************************************
