@@ -111,6 +111,7 @@ int net_pump_init(){
 //**********************************************************************
 int omx_pump_init(){
 	char fifo_name[256];
+	char fifo_name1[256];
 	prm.omxpump.shm_id=shmget(1408, 1024*1024, IPC_CREAT|00777);
 	if(prm.omxpump.shm_id==-1){
 		perror("shmget");
@@ -133,13 +134,14 @@ int omx_pump_init(){
 			return -1;
 		}
 	}
-	getcwd(fifo_name, 256);
-	strcat(fifo_name, "/cmd.fifo");
-	if(mkfifo(fifo_name, 00777)==-1){
+	getcwd(fifo_name1, 256);
+	strcat(fifo_name1, "/cmd.fifo");
+	if(mkfifo(fifo_name1, 00777)==-1){
 		if(errno!=EEXIST){
 			perror("mkfifo 1");
 			shmdt(prm.omxpump.shm_point);
 			shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
+			unlink(fifo_name);
 			return -1;
 		}
 	}
@@ -149,6 +151,8 @@ int omx_pump_init(){
 			perror("sem_init");
 			shmdt(prm.omxpump.shm_point);
 			shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
+			unlink(fifo_name);
+			unlink(fifo_name1);
 			return -1;
 	}
 	param.VideoParam.p_params.omx_pump_params.stop_sem=&prm.omxpump.stop_sem;
@@ -178,11 +182,25 @@ void* omx_source_thread(void* prms){
 	pinternal_params prm=(pinternal_params)prms;
 	pinternal_omxpump iomx_pump=&prm->omxpump;
 	pomxpump eomx_pump=&param.VideoParam.p_params.omx_pump_params;
-	
+	int d_buff_size=0;
+	struct list_head* temp_list=eomx_pump->callback_chain.entry.next;
+	pcall_chain call_ent;
 	while(!iomx_pump->stop_cond){
+		if(read(iomx_pump->synk_pipe_id, &d_buff_size, sizeof(int))<=0){
+			perror("synk pipe read");
+			pthread_exit(NULL);
+			return NULL;
+		}
 
+		while(&eomx_pump->callback_chain.entry != temp_list){
+		
+			call_ent=list_entry(temp_list,struct _call_chain,entry);
+			call_ent->read_callback(iomx_pump->shm_point, d_buff_size,call_ent->callback_data);
 
+		}
+			
 	}
+	sem_post(eomx_pump->stop_sem);
 	return NULL;
 }
 
@@ -190,13 +208,38 @@ void* omx_source_thread(void* prms){
 int omx_pump_start(){
 	char fifo_name[256];
 	pthread_attr_t attr;
-	if(list_empry(&param.VideoParam.p_params.omx_pump_params.callback_chain.entry)){
+	pinternal_omxpump iomx_pump=&prm.omxpump;
+	pomxpump eomx_pump=&param.VideoParam.p_params.omx_pump_params;
+	pid_t pid;
+	char proc_path[256];	
+	
+	if(list_empty(&param.VideoParam.p_params.omx_pump_params.callback_chain.entry)){
 		fprintf(stderr, "ERROR: Callback chain list is epty!");
 		return -1;
   }
  //Here will be fork() 
  //
  //
+	pid=fork();
+	switch(pid){
+	
+		case 0:
+			getcwd(proc_path, 256);
+			strcat(proc_path, "/omx_test");
+			if(execl(proc_path, "omx_test", NULL)==-1){
+				perror("start omx_test");
+				return -1;
+			}
+			break;
+		case -1:
+			perror("fork");
+			return -1;
+			break;
+		default:
+			break;
+
+	
+	}
 	getcwd(fifo_name, 256);
 	strcat(fifo_name, "/sync.fifo");
  	prm.omxpump.synk_pipe_id=open(fifo_name, O_RDONLY);
@@ -212,6 +255,7 @@ int omx_pump_start(){
 		perror("open cmd fifo");
 		return -1;
 	}
+	iomx_pump->stop_cond=0;
 	pthread_attr_init(&attr);
 	if(pthread_create(&prm.omxpump.thr_id, &attr,omx_source_thread, &prm )==-1){
 
@@ -279,6 +323,17 @@ int StartProcess(){
 		case eNET_PUMP:
 			break;
 		case eOMX_PUMP:
+			if(omx_pump_init()==-1){
+				fprintf(stderr, "omx_pump_init FAULT!\n");
+				err=-1;
+				break;
+			}
+			if(omx_pump_start()==-1){
+				fprintf(stderr, "omx_pump_start FAULT!!\n");
+				omx_pump_deinit();
+				err=-1;
+				break;
+			}
 			break;
 		case eDEV_PUMP:
 			break;
