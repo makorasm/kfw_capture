@@ -112,7 +112,7 @@ int net_pump_init(){
 int omx_pump_init(){
 	char fifo_name[256];
 	char fifo_name1[256];
-	prm.omxpump.shm_id=shmget(1408, 1024*1024, IPC_CREAT|00777);
+	prm.omxpump.shm_id=shmget(1408, 1024*1024*2, IPC_CREAT|00777);
 	if(prm.omxpump.shm_id==-1){
 		perror("shmget");
 		return -1;
@@ -182,11 +182,11 @@ void* omx_source_thread(void* prms){
 	pinternal_params prm=(pinternal_params)prms;
 	pinternal_omxpump iomx_pump=&prm->omxpump;
 	pomxpump eomx_pump=&param.VideoParam.p_params.omx_pump_params;
-	int d_buff_size=0;
 	struct list_head* temp_list=eomx_pump->callback_chain.entry.next;
+	pipe_cmd p_cmd;
 	pcall_chain call_ent;
 	while(!iomx_pump->stop_cond){
-		if(read(iomx_pump->synk_pipe_id, &d_buff_size, sizeof(int))<=0){
+		if(read(iomx_pump->synk_pipe_id, &p_cmd, sizeof(p_cmd))<=0){
 			perror("synk pipe read");
 			pthread_exit(NULL);
 			return NULL;
@@ -195,7 +195,7 @@ void* omx_source_thread(void* prms){
 		while(&eomx_pump->callback_chain.entry != temp_list){
 		
 			call_ent=list_entry(temp_list,struct _call_chain,entry);
-			call_ent->read_callback(iomx_pump->shm_point, d_buff_size,call_ent->callback_data);
+			call_ent->read_callback(iomx_pump->shm_point+p_cmd.bf_offset, p_cmd.bf_size, call_ent->callback_data);
 
 		}
 			

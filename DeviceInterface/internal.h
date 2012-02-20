@@ -66,4 +66,9 @@ typedef union _internal_params{
 
 }internal_params, *pinternal_params;
 
+typedef struct _pipe_cmd{
+
+	unsigned bf_size;
+	unsigned bf_offset;
+}pipe_cmd, *ppipe_cmd;
 #endif
