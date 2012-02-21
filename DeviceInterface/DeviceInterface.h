@@ -207,7 +207,7 @@ typedef struct _netpump{
 typedef struct _omxpump{
 
 	unsigned			buf_size;
-	call_chain		callback_chain;
+	struct list_head			callback_chain;
 	sem_t*				stop_sem;
 	pid_t					omx_pid;
 

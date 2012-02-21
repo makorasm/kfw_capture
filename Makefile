@@ -7,7 +7,7 @@ pump.o:./DeviceInterface/pump.c ./DeviceInterface/DeviceInterface.h ./DeviceInte
 testliba:testlib.o libpump.a
 	gcc -g -o testliba testlib.o -L. -lpump -pthread
 
-testlib.o:./testlib/testlib.c
+testlib.o:./testlib/testlib.c ./DeviceInterface/list.h
 	gcc -g -c ./testlib/testlib.c -Wall
 
 omx_test:serv.o test.o

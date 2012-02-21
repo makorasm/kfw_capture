@@ -30,6 +30,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
+#include "signal.h"
 #include "DeviceInterface.h"
 #include "internal.h"
 #include "list.h"
@@ -156,7 +157,7 @@ int omx_pump_init(){
 			return -1;
 	}
 	param.VideoParam.p_params.omx_pump_params.stop_sem=&prm.omxpump.stop_sem;
-	INIT_LIST_HEAD(&param.VideoParam.p_params.omx_pump_params.callback_chain.entry);
+	//INIT_LIST_HEAD(&param.VideoParam.p_params.omx_pump_params.callback_chain.entry);
 
 
 	return -1;
@@ -182,7 +183,7 @@ void* omx_source_thread(void* prms){
 	pinternal_params prm=(pinternal_params)prms;
 	pinternal_omxpump iomx_pump=&prm->omxpump;
 	pomxpump eomx_pump=&param.VideoParam.p_params.omx_pump_params;
-	struct list_head* temp_list=eomx_pump->callback_chain.entry.next;
+	struct list_head* temp_list=eomx_pump->callback_chain.next;
 	pipe_cmd p_cmd;
 	pcall_chain call_ent;
 	while(!iomx_pump->stop_cond){
@@ -192,7 +193,7 @@ void* omx_source_thread(void* prms){
 			return NULL;
 		}
 
-		while(&eomx_pump->callback_chain.entry != temp_list){
+		while(&eomx_pump->callback_chain != temp_list){
 		
 			call_ent=list_entry(temp_list,struct _call_chain,entry);
 			call_ent->read_callback(iomx_pump->shm_point+p_cmd.bf_offset, p_cmd.bf_size, call_ent->callback_data);
@@ -213,7 +214,7 @@ int omx_pump_start(){
 	pid_t pid;
 	char proc_path[256];	
 	
-	if(list_empty(&param.VideoParam.p_params.omx_pump_params.callback_chain.entry)){
+	if(list_empty(&param.VideoParam.p_params.omx_pump_params.callback_chain)){
 		fprintf(stderr, "ERROR: Callback chain list is epty!");
 		return -1;
   }
@@ -236,6 +237,7 @@ int omx_pump_start(){
 			return -1;
 			break;
 		default:
+			eomx_pump->omx_pid=pid;
 			break;
 
 	
@@ -359,6 +361,10 @@ void StopProcess(){
 		case eNET_PUMP:
 			break;
 		case eOMX_PUMP:
+			prm.omxpump.stop_cond=1;
+			sem_wait(&prm.omxpump.stop_sem);
+			kill(param.VideoParam.p_params.omx_pump_params.omx_pid, 
+					SIGKILL);
 			break;
 		case eDEV_PUMP:
 			break;

@@ -1,6 +1,6 @@
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
-#define CONFIG_DEBUG_LIST
+//#define CONFIG_DEBUG_LIST
 //#include <linux/types.h>
 //#include <linux/stddef.h>
 //#include <linux/poison.h>

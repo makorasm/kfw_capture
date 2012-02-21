@@ -38,6 +38,10 @@
 comm_res c_res;
 int main(int argc, char* argv[]){
 
-	init_comm_resource(&c_res);
+	if(init_comm_resource(&c_res)){
+
+		fprintf(stderr, "OMX emu init FAULT!\n");
+		exit(-1);
+	}
 	return 0;
 }
