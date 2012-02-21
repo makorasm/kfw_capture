@@ -4,7 +4,17 @@ libpump.a:pump.o
 pump.o:./DeviceInterface/pump.c ./DeviceInterface/DeviceInterface.h ./DeviceInterface/internal.h
 	gcc -g -c ./DeviceInterface/pump.c -Wall
 
-testlib:testlib.o libpump.a
-	gcc -g -o testlib testlib.o -L. -lpump -pthread
-testlib.o:testlib.c
-	gcc -g -c testlib.c -Wall
+testliba:testlib.o libpump.a
+	gcc -g -o testliba testlib.o -L. -lpump -pthread
+
+testlib.o:./testlib/testlib.c
+	gcc -g -c ./testlib/testlib.c -Wall
+
+omx_test:serv.o test.o
+	gcc -g -o omx_test serv.o test.o -pthread
+
+serv.o:./omx_emu/serv.c ./omx_emu/serv.h ./DeviceInterface/internal.h
+	gcc -g -c ./omx_emu/serv.c -Wall
+
+test.o:./omx_emu/test.c ./omx_emu/serv.h ./DeviceInterface/internal.h
+	gcc -g -c ./omx_emu/test.c -Wall

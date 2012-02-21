@@ -29,6 +29,6 @@ typedef struct _comm_res{
 
 int init_comm_resource(pcomm_res res);
 
-int write_comm_data(char* d_point, unsigned bf_size, pcomm_res res);
+int write_comm_data(char* d_point, ppipe_cmd p_cmd, pcomm_res res);
 
 void* cmd_thread(void* param);
