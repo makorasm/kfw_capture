@@ -46,8 +46,10 @@ call_chain new_entry;
 INIT_LIST_HEAD(&omx_pump->callback_chain);
 new_entry.read_callback = test_callback;
 new_entry.callback_data = NULL;
-list_add_tail(&omx_pump->callback_chain, &new_entry.entry);
-
+list_add(&new_entry.entry, &omx_pump->callback_chain );
+printf("MAIN LIST: %p %p %p %p\n", &new_entry.entry, new_entry.entry.next, 
+		&omx_pump->callback_chain, omx_pump->callback_chain.next);
+param.VideoParam.p_type=eOMX_PUMP;
 SetProcessParam(&param);
 StartProcess();
 GetProcessParam(&param);

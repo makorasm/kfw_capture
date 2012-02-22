@@ -37,11 +37,16 @@
 
 comm_res c_res;
 int main(int argc, char* argv[]){
-
+	char c_data[256];
+	pipe_cmd p_cmd;
 	if(init_comm_resource(&c_res)){
 
 		fprintf(stderr, "OMX emu init FAULT!\n");
 		exit(-1);
 	}
+	memset(c_data, 0xAA, 256);
+	p_cmd.bf_offset=0;
+	p_cmd.bf_size=256;
+	write_comm_data(c_data, &p_cmd, &c_res);
 	return 0;
 }

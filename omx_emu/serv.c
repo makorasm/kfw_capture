@@ -111,6 +111,7 @@ int init_comm_resource(pcomm_res res){
 
 int write_comm_data(char* d_point,  ppipe_cmd p_cmd, pcomm_res res){
 	int ret_val=0;
+
 	memcpy(res->shm_point+p_cmd->bf_offset, d_point, p_cmd->bf_size);
 
 	if((ret_val=write(res->sync_pipe_id, p_cmd,sizeof(pipe_cmd) ))<0){

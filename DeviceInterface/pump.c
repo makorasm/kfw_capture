@@ -36,7 +36,7 @@
 #include "list.h"
 
 internal_params prm;
-struct s_ProcessParam param;
+struct s_ProcessParam* param;
 int file_pump_deinit(){
 
 	munmap(prm.fpump.map_addr, prm.fpump.file_size);
@@ -50,7 +50,7 @@ int file_pump_init(){
 	int fl_id;
 	struct stat st;
 
-	if(param.VideoParam.p_params.file_pump_params.pump_read_callback==NULL){
+	if(param->VideoParam.p_params.file_pump_params.pump_read_callback==NULL){
 		
 		errno=EINVAL;
 
@@ -60,7 +60,7 @@ int file_pump_init(){
 	}
 
 
-	fl_id=open(param.VideoParam.p_params.file_pump_params.sf_name, O_RDONLY);
+	fl_id=open(param->VideoParam.p_params.file_pump_params.sf_name, O_RDONLY);
 	if(fl_id == -1){
 		perror("file_pump_init 1");
 		return -1;
@@ -72,11 +72,11 @@ int file_pump_init(){
 		return -1;
 	}
 	prm.fpump.file_size=st.st_size;
-	if(param.VideoParam.p_params.file_pump_params.buf_size > st.st_size){
+	if(param->VideoParam.p_params.file_pump_params.buf_size > st.st_size){
 		prm.fpump.buf_size=st.st_size;
 	}else{
 
-		prm.fpump.buf_size=param.VideoParam.p_params.file_pump_params.buf_size;
+		prm.fpump.buf_size=param->VideoParam.p_params.file_pump_params.buf_size;
 	}
  
 	prm.fpump.map_addr=mmap(NULL,st.st_size, PROT_READ, MAP_PRIVATE, fl_id, 0 );
@@ -96,9 +96,9 @@ int file_pump_init(){
 	}
 	prm.fpump.stop_cond=0;
 	prm.fpump.offset=0;
-	prm.fpump.pump_read_callback=param.VideoParam.p_params.file_pump_params.pump_read_callback;
-	prm.fpump.pump_read_callback_data=param.VideoParam.p_params.file_pump_params.pump_read_callback_data;
-	param.VideoParam.p_params.file_pump_params.stop_sem=&prm.fpump.stop_sem;
+	prm.fpump.pump_read_callback=param->VideoParam.p_params.file_pump_params.pump_read_callback;
+	prm.fpump.pump_read_callback_data=param->VideoParam.p_params.file_pump_params.pump_read_callback_data;
+	param->VideoParam.p_params.file_pump_params.stop_sem=&prm.fpump.stop_sem;
 	close(fl_id);
 	return 0;
 }
@@ -156,11 +156,11 @@ int omx_pump_init(){
 			unlink(fifo_name1);
 			return -1;
 	}
-	param.VideoParam.p_params.omx_pump_params.stop_sem=&prm.omxpump.stop_sem;
+	param->VideoParam.p_params.omx_pump_params.stop_sem=&prm.omxpump.stop_sem;
 	//INIT_LIST_HEAD(&param.VideoParam.p_params.omx_pump_params.callback_chain.entry);
 
 
-	return -1;
+	return 0;
 }
 
 void omx_pump_deinit(){
@@ -182,21 +182,25 @@ void* omx_source_thread(void* prms){
 	
 	pinternal_params prm=(pinternal_params)prms;
 	pinternal_omxpump iomx_pump=&prm->omxpump;
-	pomxpump eomx_pump=&param.VideoParam.p_params.omx_pump_params;
+	pomxpump eomx_pump=&param->VideoParam.p_params.omx_pump_params;
 	struct list_head* temp_list=eomx_pump->callback_chain.next;
 	pipe_cmd p_cmd;
 	pcall_chain call_ent;
 	while(!iomx_pump->stop_cond){
 		if(read(iomx_pump->synk_pipe_id, &p_cmd, sizeof(p_cmd))<=0){
 			perror("synk pipe read");
+			sem_post(eomx_pump->stop_sem);
 			pthread_exit(NULL);
 			return NULL;
 		}
 
+		printf("PUMPLIB: read data %d\n", p_cmd.bf_size);
 		while(&eomx_pump->callback_chain != temp_list){
-		
+			printf("PUMPLIB: list %p head %p next %p\n", 
+					temp_list, &eomx_pump->callback_chain, eomx_pump->callback_chain.next);	
 			call_ent=list_entry(temp_list,struct _call_chain,entry);
 			call_ent->read_callback(iomx_pump->shm_point+p_cmd.bf_offset, p_cmd.bf_size, call_ent->callback_data);
+			temp_list=temp_list->next;
 
 		}
 			
@@ -210,11 +214,12 @@ int omx_pump_start(){
 	char fifo_name[256];
 	pthread_attr_t attr;
 	pinternal_omxpump iomx_pump=&prm.omxpump;
-	pomxpump eomx_pump=&param.VideoParam.p_params.omx_pump_params;
+	pomxpump eomx_pump=&param->VideoParam.p_params.omx_pump_params;
 	pid_t pid;
 	char proc_path[256];	
 	
-	if(list_empty(&param.VideoParam.p_params.omx_pump_params.callback_chain)){
+printf("INIT LIST: %p %p\n", 	&eomx_pump->callback_chain, eomx_pump->callback_chain.next);
+	if(list_empty(&param->VideoParam.p_params.omx_pump_params.callback_chain)){
 		fprintf(stderr, "ERROR: Callback chain list is epty!");
 		return -1;
   }
@@ -303,7 +308,7 @@ void* source_thread(void* prms){
 int StartProcess(){
   int err=0;
 	pthread_attr_t attr;
-	switch(param.VideoParam.p_type){
+	switch(param->VideoParam.p_type){
 		
 		case eFILE_PUMP:
 			if(file_pump_init()==-1){
@@ -351,7 +356,7 @@ int StartProcess(){
 }
 void StopProcess(){
 
-	switch(param.VideoParam.p_type){
+	switch(param->VideoParam.p_type){
 		
 		case eFILE_PUMP:
 			prm.fpump.stop_cond=1;
@@ -363,7 +368,7 @@ void StopProcess(){
 		case eOMX_PUMP:
 			prm.omxpump.stop_cond=1;
 			sem_wait(&prm.omxpump.stop_sem);
-			kill(param.VideoParam.p_params.omx_pump_params.omx_pid, 
+			kill(param->VideoParam.p_params.omx_pump_params.omx_pid, 
 					SIGKILL);
 			break;
 		case eDEV_PUMP:
@@ -377,12 +382,12 @@ void StopProcess(){
 // at the begining calling GetProcessParam and filling struct with process param, later we only change param and apply them
 int SetProcessParam(struct s_ProcessParam *ProcessParam){
 	
-	if(ProcessParam) memcpy(&param, ProcessParam, sizeof(param));
+	if(ProcessParam)param=ProcessParam;// memcpy(&param, ProcessParam, sizeof(param));
 	return 0;
 }
 void GetProcessParam(struct s_ProcessParam * ProcessParam){
 	
-	if(ProcessParam) memcpy(ProcessParam, &param, sizeof(param));
+	//if(ProcessParam) memcpy(ProcessParam, &param, sizeof(param));
 
 }
 
