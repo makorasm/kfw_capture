@@ -26,6 +26,7 @@
 #include "sys/stat.h"
 #include "sys/ipc.h"
 #include "sys/shm.h"
+#include "sys/sem.h"
 #include "getopt.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -34,6 +35,7 @@
 #include "DeviceInterface.h"
 #include "internal.h"
 #include "list.h"
+#include "sync_sem.h"
 
 internal_params prm;
 struct s_ProcessParam* param;
@@ -158,7 +160,16 @@ int omx_pump_init(){
 	}
 	param->VideoParam.p_params.omx_pump_params.stop_sem=&prm.omxpump.stop_sem;
 	//INIT_LIST_HEAD(&param.VideoParam.p_params.omx_pump_params.callback_chain.entry);
-
+	prm.omxpump.sync_sem=semget((key_t)1409, 1, 0666|IPC_CREAT);
+  if(prm.omxpump.sync_sem == -1){
+		perror("seget");
+		shmdt(prm.omxpump.shm_point);
+		shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
+		unlink(fifo_name);
+		unlink(fifo_name1);
+		sem_destroy(&prm.omxpump.stop_sem);
+			return -1;
+	}
 
 	return 0;
 }
@@ -175,6 +186,7 @@ void omx_pump_deinit(){
 	getcwd(fifo_name, 256);
 	strcat(fifo_name, "/cmd.fifo");
 	unlink(fifo_name);
+	semctl(prm.omxpump.sync_sem, 0, IPC_RMID, NULL);	
 
 }
 
@@ -187,14 +199,16 @@ void* omx_source_thread(void* prms){
 	pipe_cmd p_cmd;
 	pcall_chain call_ent;
 	while(!iomx_pump->stop_cond){
-		if(read(iomx_pump->synk_pipe_id, &p_cmd, sizeof(p_cmd))<=0){
+	//	fsync(iomx_pump->synk_pipe_id);
+		if(read(iomx_pump->synk_pipe_id, &p_cmd, sizeof(p_cmd))<sizeof(p_cmd)){
 			perror("synk pipe read");
 			sem_post(eomx_pump->stop_sem);
 			pthread_exit(NULL);
 			return NULL;
 		}
-
-		printf("PUMPLIB: read data %d\n", p_cmd.bf_size);
+		free_sem(iomx_pump->sync_sem);
+		temp_list=eomx_pump->callback_chain.next;
+		printf("PUMPLIB: read data %d %d\n", p_cmd.bf_size, p_cmd.bf_offset);
 		while(&eomx_pump->callback_chain != temp_list){
 			printf("PUMPLIB: list %p head %p next %p\n", 
 					temp_list, &eomx_pump->callback_chain, eomx_pump->callback_chain.next);	
@@ -249,7 +263,7 @@ printf("INIT LIST: %p %p\n", 	&eomx_pump->callback_chain, eomx_pump->callback_ch
 	}
 	getcwd(fifo_name, 256);
 	strcat(fifo_name, "/sync.fifo");
- 	prm.omxpump.synk_pipe_id=open(fifo_name, O_RDONLY);
+ 	prm.omxpump.synk_pipe_id=open(fifo_name, O_RDONLY|O_SYNC);
 	if(prm.omxpump.synk_pipe_id==-1){
 		perror("open synk fifo");
 		return -1;
@@ -367,9 +381,10 @@ void StopProcess(){
 			break;
 		case eOMX_PUMP:
 			prm.omxpump.stop_cond=1;
-			sem_wait(&prm.omxpump.stop_sem);
+			pthread_join(prm.omxpump.thr_id,NULL);
 			kill(param->VideoParam.p_params.omx_pump_params.omx_pid, 
 					SIGKILL);
+			omx_pump_deinit();
 			break;
 		case eDEV_PUMP:
 			break;

@@ -26,12 +26,14 @@
 #include "sys/stat.h"
 #include "sys/ipc.h"
 #include "sys/shm.h"
+#include "sys/sem.h"
 #include "getopt.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
 #include "../DeviceInterface/DeviceInterface.h"
 #include "../DeviceInterface/internal.h"
+#include "../DeviceInterface/sync_sem.h"
 #include "serv.h"
 
 int init_comm_resource(pcomm_res res){
@@ -42,7 +44,7 @@ int init_comm_resource(pcomm_res res){
 
 	getcwd(fifo_name, 256);
 	strcat(fifo_name, "/sync.fifo");
-	res->sync_pipe_id=open(fifo_name, O_WRONLY);
+	res->sync_pipe_id=open(fifo_name, O_WRONLY|O_SYNC);
 	if(res->sync_pipe_id == -1){
 
 		perror("omx open sync pipe");
@@ -102,6 +104,29 @@ int init_comm_resource(pcomm_res res){
 	}
 
 
+	res->sync_sem=semget((key_t)1409, 1, 0666|IPC_CREAT);
+	
+	if(res->sync_sem==-1){
+	
+		perror("omx sync_sem");
+		shmdt(res->shm_point);
+		shmctl(res->shm_id, IPC_RMID, NULL);
+		close(res->sync_pipe_id);
+		close(res->cmd_pipe_id);
+		return -1;
+
+	}
+	if(sync_sem_init(res->sync_sem, 0)==-1){
+	
+		perror("omx sync_sem_init");
+		shmdt(res->shm_point);
+		shmctl(res->shm_id, IPC_RMID, NULL);
+		close(res->sync_pipe_id);
+		close(res->cmd_pipe_id);
+		semctl(res->sync_sem, 0, IPC_RMID, NULL);
+		return -1;
+	
+	}
 	printf("OMX init: command thread created %d\n", res->cmd_thread_id);
 
 	return 0;
@@ -114,7 +139,7 @@ int write_comm_data(char* d_point,  ppipe_cmd p_cmd, pcomm_res res){
 
 	memcpy(res->shm_point+p_cmd->bf_offset, d_point, p_cmd->bf_size);
 
-	if((ret_val=write(res->sync_pipe_id, p_cmd,sizeof(pipe_cmd) ))<0){
+	if((ret_val=write(res->sync_pipe_id, p_cmd, sizeof(pipe_cmd) ))<0){
 		
 		perror("write sync fifo");
 		return -1;
@@ -123,9 +148,10 @@ int write_comm_data(char* d_point,  ppipe_cmd p_cmd, pcomm_res res){
 		fprintf(stderr, "sync fifo closed!!!\n");
 		return -2;
 	}
-
-	printf("OMX write data: addr %p size %d\n", res->shm_point+p_cmd->bf_offset, 
-			p_cmd->bf_size);
+	wait_for_sem(res->sync_sem);
+//	fsync(res->sync_pipe_id);
+	printf("OMX write data: addr %p size %d ret_val %d\n", res->shm_point+p_cmd->bf_offset, 
+			p_cmd->bf_size, ret_val);
 	return 0;
 }
 
