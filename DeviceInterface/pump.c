@@ -231,8 +231,8 @@ printf("INIT LIST: %p %p\n", 	&eomx_pump->callback_chain, eomx_pump->callback_ch
 	
 		case 0:
 			getcwd(proc_path, 256);
-			strcat(proc_path, "/omx_test");
-			if(execl(proc_path, "omx_test", NULL)==-1){
+			strcat(proc_path, "/kfw_cap_a8host_debug.xv5T");
+			if(execl(proc_path, "kfw_cap_a8host_debug.xv5T", NULL)==-1){
 				perror("start omx_test");
 				return -1;
 			}
