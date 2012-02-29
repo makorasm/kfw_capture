@@ -1,12 +1,12 @@
 /*
  * =====================================================================================
  *
- *       Filename:  serv.h
+ *       Filename:  sync_sem.h
  *
  *    Description:  
  *
  *        Version:  1.0
- *        Created:  02/20/2012 11:38:43 AM
+ *        Created:  02/28/2012 01:19:55 PM
  *       Revision:  none
  *       Compiler:  gcc
  *
@@ -16,20 +16,12 @@
  * =====================================================================================
  */
 
-
-typedef struct _comm_res{
-
-	int				sync_pipe_id;
-	int				cmd_pipe_id;
-	int				shm_id;
-	char*			shm_point;
-	pthread_t cmd_thread_id;
-	int				sync_sem;
-} comm_res, *pcomm_res;
+#ifndef _SYNC_SEM_
+#define _SYNC_SEM_
 
 
-int init_comm_resource(pcomm_res res);
+int sync_sem_init(int id,  int val);
+int wait_for_sem(int id);
+int free_sem( int id);
+#endif
 
-int write_comm_data(char* d_point, ppipe_cmd p_cmd, pcomm_res res);
-
-void* cmd_thread(void* param);

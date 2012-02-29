@@ -35,7 +35,7 @@
 
 int test_callback(void* buff, unsigned bf_size, void* prv_data){
 
-	printf("CALLBACK: buff %p size %d\n", buff, bf_size);
+	printf("CALLBACK: buff %p size %d val %d\n", buff, bf_size, *(unsigned*)buff);
 	return 0;
 }
 
@@ -54,5 +54,6 @@ SetProcessParam(&param);
 StartProcess();
 GetProcessParam(&param);
 sem_wait(param.VideoParam.p_params.omx_pump_params.stop_sem);
+StopProcess();
 	return 0;
 }
