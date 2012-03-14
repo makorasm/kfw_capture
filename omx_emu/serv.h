@@ -25,6 +25,7 @@ typedef struct _comm_res{
 	char*			shm_point;
 	pthread_t cmd_thread_id;
 	int				sync_sem;
+	int				callback_sem;
 } comm_res, *pcomm_res;
 
 

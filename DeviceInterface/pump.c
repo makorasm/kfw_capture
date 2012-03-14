@@ -171,6 +171,30 @@ int omx_pump_init(){
 			return -1;
 	}
 
+	prm.omxpump.callback_sem=semget((key_t)1410, 1, 0666|IPC_CREAT);
+  if(prm.omxpump.callback_sem == -1){
+		perror("callback seget");
+		shmdt(prm.omxpump.shm_point);
+		shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
+		unlink(fifo_name);
+		unlink(fifo_name1);
+		sem_destroy(&prm.omxpump.stop_sem);
+		semctl(prm.omxpump.sync_sem, 0, IPC_RMID, NULL);	
+			return -1;
+	}
+	if(sync_sem_init(prm.omxpump.callback_sem, 1)==-1){
+
+		perror("callback sem_init");
+		shmdt(prm.omxpump.shm_point);
+		shmctl(prm.omxpump.shm_id, IPC_RMID, NULL);
+		unlink(fifo_name);
+		unlink(fifo_name1);
+		sem_destroy(&prm.omxpump.stop_sem);
+		semctl(prm.omxpump.sync_sem, 0, IPC_RMID, NULL);	
+		semctl(prm.omxpump.callback_sem, 0, IPC_RMID, NULL);	
+			return -1;
+
+	}
 	return 0;
 }
 
@@ -187,6 +211,7 @@ void omx_pump_deinit(){
 	strcat(fifo_name, "/cmd.fifo");
 	unlink(fifo_name);
 	semctl(prm.omxpump.sync_sem, 0, IPC_RMID, NULL);	
+	semctl(prm.omxpump.callback_sem, 0, IPC_RMID, NULL);	
 
 }
 
@@ -207,6 +232,16 @@ void* omx_source_thread(void* prms){
 			return NULL;
 		}
 		free_sem(iomx_pump->sync_sem);
+		
+		wait_for_sem(iomx_pump->callback_sem);
+		if(list_empty(&eomx_pump->callback_chain)){
+				free_sem(iomx_pump->callback_sem);	
+				close(iomx_pump->synk_pipe_id);
+				close(iomx_pump->cmd_pipe_id);
+				waitpid(param->VideoParam.p_params.omx_pump_params.omx_pid, &stat, 0);
+				omx_pump_deinit();
+				goto ___STP;
+		}
 		temp_list=eomx_pump->callback_chain.next;
 		printf("PUMPLIB: read data %d %d\n", p_cmd.bf_size, p_cmd.bf_offset);
 		while(&eomx_pump->callback_chain != temp_list){
@@ -217,8 +252,9 @@ void* omx_source_thread(void* prms){
 			temp_list=temp_list->next;
 
 		}
-			
+		free_sem(iomx_pump->callback_sem);
 	}
+___STP:
 	sem_post(eomx_pump->stop_sem);
 	return NULL;
 }
@@ -286,6 +322,16 @@ printf("INIT LIST: %p %p\n", 	&eomx_pump->callback_chain, eomx_pump->callback_ch
 		return -1;
 	}
 	return 0;
+}
+
+void omx_stop(){
+	int stat=0;
+	prm.omxpump.stop_cond=1;
+	pthread_join(prm.omxpump.thr_id,NULL);
+	close(prm.omxpump.synk_pipe_id);
+	close(prm.omxpump.cmd_pipe_id);
+	waitpid(param->VideoParam.p_params.omx_pump_params.omx_pid, &stat, 0);
+	omx_pump_deinit();
 }
 //**********************************************************************
 //**********************************************************************
@@ -380,11 +426,7 @@ void StopProcess(){
 		case eNET_PUMP:
 			break;
 		case eOMX_PUMP:
-			prm.omxpump.stop_cond=1;
-			pthread_join(prm.omxpump.thr_id,NULL);
-			kill(param->VideoParam.p_params.omx_pump_params.omx_pid, 
-					SIGKILL);
-			omx_pump_deinit();
+			omx_stop();
 			break;
 		case eDEV_PUMP:
 			break;
@@ -424,3 +466,27 @@ int ReadAudioData(char * Data, int DataLen){
 
 } // -1,... if error
 
+int AttachVideoCallback(pcall_chain entry){
+
+	pinternal_omxpump iomx_pump=&prm.omxpump;
+	pomxpump eomx_pump=&param->VideoParam.p_params.omx_pump_params;
+	if(wait_for_sem(iomx_pump->callback_sem) < 0){
+		perror("AttachVideoCallback");
+		return -1;
+	}
+	list_add_tail(&entry->entry, &eomx_pump->callback_chain);
+	free_sem(iomx_pump->callback_sem);
+	return 0;
+}
+
+int DetachVideoCallback(pcall_chain entry){
+
+	pinternal_omxpump iomx_pump=&prm.omxpump;
+	if(wait_for_sem(iomx_pump->callback_sem) < 0){
+		perror("DetachVideoCallback");
+		return -1;
+	}
+	list_del(&entry->entry);
+	free_sem(iomx_pump->callback_sem);
+	return 0;
+}

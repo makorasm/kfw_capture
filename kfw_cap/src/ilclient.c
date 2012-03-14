@@ -353,7 +353,9 @@ void IL_ClientOutputBitStreamWriteTask (void *threadsArg)
 		if(write_comm_data((char*)pBufferOut->pBuffer, &p_cmd, &common_res ) < 0){
 
 			fprintf(stderr, "IL Capture thread error\n");
-			pthread_exit(NULL);
+      frameCounter = 0;
+      semp_post(encILComp->eos);
+			pthread_exit(encILComp);
 
 		}
 

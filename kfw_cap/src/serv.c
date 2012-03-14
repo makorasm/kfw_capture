@@ -127,6 +127,31 @@ int init_comm_resource(pcomm_res res){
 		return -1;
 	
 	}
+	res->callback_sem=semget((key_t)1410, 1, 0666|IPC_CREAT);
+	
+	if(res->callback_sem==-1){
+	
+		perror("omx callback_sem");
+		shmdt(res->shm_point);
+		shmctl(res->shm_id, IPC_RMID, NULL);
+		close(res->sync_pipe_id);
+		close(res->cmd_pipe_id);
+		semctl(res->sync_sem, 0, IPC_RMID, NULL);
+		return -1;
+
+	}
+/* 	if(sync_sem_init(res->callback_sem, 0)==-1){
+	
+		perror("omx callback_sem_init");
+		shmdt(res->shm_point);
+		shmctl(res->shm_id, IPC_RMID, NULL);
+		close(res->sync_pipe_id);
+		close(res->cmd_pipe_id);
+		semctl(res->sync_sem, 0, IPC_RMID, NULL);
+		semctl(res->callback_sem, 0, IPC_RMID, NULL);
+		return -1;
+	
+	}*/
 	printf("OMX init: command thread created %d\n", res->cmd_thread_id);
 
 	return 0;
@@ -149,7 +174,6 @@ int write_comm_data(char* d_point,  ppipe_cmd p_cmd, pcomm_res res){
 		return -2;
 	}
 	wait_for_sem(res->sync_sem);
-//	fsync(res->sync_pipe_id);
 	printf("OMX write data: addr %p size %d ret_val %d\n", res->shm_point+p_cmd->bf_offset, 
 			p_cmd->bf_size, ret_val);
 	return 0;

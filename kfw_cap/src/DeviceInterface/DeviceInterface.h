@@ -267,6 +267,8 @@ int ReadVideoData(char * Data, int DataLen); // -1,... if error
 int ReadMetaData(char * Data, int DataLen); // -1,... if error
 int ReadAudioData(char * Data, int DataLen); // -1,... if error
 
+int AttachVideoCallback(pcall_chain entry);
+int DetachVideoCallback(pcall_chain entry);
 #ifdef __cplusplus
 }
 #endif

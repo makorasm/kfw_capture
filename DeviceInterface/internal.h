@@ -49,6 +49,7 @@ typedef struct _internal_omxpump{
 	sem_t			stop_sem;
 	int				stop_cond;
 	int				sync_sem;
+	int				callback_sem;
 
 }internal_omxpump, *pinternal_omxpump;
 
