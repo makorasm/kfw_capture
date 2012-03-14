@@ -173,9 +173,11 @@ int write_comm_data(char* d_point,  ppipe_cmd p_cmd, pcomm_res res){
 		fprintf(stderr, "sync fifo closed!!!\n");
 		return -2;
 	}
-	wait_for_sem(res->sync_sem);
 	printf("OMX write data: addr %p size %d ret_val %d\n", res->shm_point+p_cmd->bf_offset, 
 			p_cmd->bf_size, ret_val);
+	wait_for_sem(res->sync_sem);
+	//printf("OMX write data: addr %p size %d ret_val %d\n", res->shm_point+p_cmd->bf_offset, 
+	//		p_cmd->bf_size, ret_val);
 	return 0;
 }
 

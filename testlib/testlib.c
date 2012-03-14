@@ -53,6 +53,8 @@ param.VideoParam.p_type=eOMX_PUMP;
 SetProcessParam(&param);
 StartProcess();
 GetProcessParam(&param);
+sleep(10);
+StopProcess();
 sem_wait(param.VideoParam.p_params.omx_pump_params.stop_sem);
 StopProcess();
 	return 0;

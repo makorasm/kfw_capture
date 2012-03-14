@@ -254,6 +254,18 @@ void* omx_source_thread(void* prms){
 		}
 		free_sem(iomx_pump->callback_sem);
 	}
+	if(iomx_pump->stop_cond){
+
+		if(read(iomx_pump->synk_pipe_id, &p_cmd, sizeof(p_cmd))<sizeof(p_cmd)){
+			perror("synk pipe read");
+			sem_post(eomx_pump->stop_sem);
+			pthread_exit(NULL);
+			return NULL;
+		}
+		close(iomx_pump->synk_pipe_id);
+		free_sem(iomx_pump->sync_sem);
+
+	}
 ___STP:
 	sem_post(eomx_pump->stop_sem);
 	return NULL;
@@ -328,9 +340,15 @@ void omx_stop(){
 	int stat=0;
 	prm.omxpump.stop_cond=1;
 	pthread_join(prm.omxpump.thr_id,NULL);
-	close(prm.omxpump.synk_pipe_id);
+	if(close(prm.omxpump.synk_pipe_id)==-1){
+		perror("OMX_STOP");
+	}
+	fprintf(stderr, "SYNC_PIPE CLOSED\n");
 	close(prm.omxpump.cmd_pipe_id);
+	fprintf(stderr, "CMD_PIPE CLOSED\n");
+	free_sem(prm.omxpump.sync_sem);
 	waitpid(param->VideoParam.p_params.omx_pump_params.omx_pid, &stat, 0);
+	fprintf(stderr, "PROCESS TERMINATED\n");
 	omx_pump_deinit();
 }
 //**********************************************************************
